@@ -1,14 +1,7 @@
+from tkinter import *
+import tkinter.messagebox as tkMessageBox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
-
-try:
-    # Tenta importar bibliotecas do Python 2 (como no código original)
-    from Tkinter import *
-    import tkMessageBox
-except ImportError:
-    # Se der erro, assume que é Python 3 e usa os nomes novos
-    from tkinter import *
-    import tkinter.messagebox as tkMessageBox
 
 from RtpPacket import RtpPacket
 
@@ -41,7 +34,7 @@ class Client:
         self.teardownAcked = 0
         self.connectToServer()
         self.frameNbr = 0
-        self.rtpSocket = None # Inicializa variavel do socket
+        self.rtpSocket = None
         
     def createWidgets(self):
         """Build GUI."""
@@ -85,7 +78,7 @@ class Client:
         try:
             os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT) # Delete the cache image from video
         except OSError:
-            pass # Ignora erro se arquivo ja foi removido
+            pass # Ignora se o arquivo ja foi deletado
 
     def pauseMovie(self):
         """Pause button handler."""
@@ -111,14 +104,14 @@ class Client:
                     rtpPacket.decode(data)
                     
                     currFrameNbr = rtpPacket.seqNum()
-                    # print ("Current Seq Num: " + str(currFrameNbr))
+                    # print("Current Seq Num: " + str(currFrameNbr))
                                         
                     if currFrameNbr > self.frameNbr: # Discard the late packet
                         self.frameNbr = currFrameNbr
                         self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
             except:
                 # Stop listening upon requesting PAUSE or TEARDOWN
-                if self.playEvent.is_Set(): 
+                if self.playEvent.isSet(): 
                     break
                 
                 # Upon receiving ACK for TEARDOWN request,
@@ -132,6 +125,7 @@ class Client:
     def writeFrame(self, data):
         """Write the received frame to a temp image file. Return the image file."""
         cachename = CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT
+        # 'wb' é crucial para escrever bytes de imagem no Python 3
         file = open(cachename, "wb")
         file.write(data)
         file.close()
@@ -140,9 +134,13 @@ class Client:
     
     def updateMovie(self, imageFile):
         """Update the image file as video frame in the GUI."""
-        photo = ImageTk.PhotoImage(Image.open(imageFile))
-        self.label.configure(image = photo, height=288) 
-        self.label.image = photo
+        try:
+            photo = ImageTk.PhotoImage(Image.open(imageFile))
+            self.label.configure(image = photo, height=288) 
+            self.label.image = photo
+        except Exception as e:
+            # Em caso de imagem corrompida, apenas ignora o frame
+            print(f"Erro ao atualizar frame: {e}")
         
     def connectToServer(self):
         """Connect to the Server. Start a new RTSP/TCP session."""
@@ -163,62 +161,48 @@ class Client:
             # Update RTSP sequence number.
             self.rtspSeq += 1
             
-            # Write the RTSP request to be sent.
-            # O comando SETUP configura a sessão e parâmetros de transporte
             request = "SETUP " + self.fileName + " RTSP/1.0\n" + \
                       "CSeq: " + str(self.rtspSeq) + "\n" + \
                       "Transport: RTP/UDP; client_port= " + str(self.rtpPort)
             
-            # Keep track of the sent request.
             self.requestSent = self.SETUP
         
         # Play request
         elif requestCode == self.PLAY and self.state == self.READY:
-            # Update RTSP sequence number.
             self.rtspSeq += 1
             
-            # Write the RTSP request to be sent.
-            # PLAY inicia a reprodução, exige Session ID, sem Transport
             request = "PLAY " + self.fileName + " RTSP/1.0\n" + \
                       "CSeq: " + str(self.rtspSeq) + "\n" + \
                       "Session: " + str(self.sessionId)
             
-            # Keep track of the sent request.
             self.requestSent = self.PLAY
         
         # Pause request
         elif requestCode == self.PAUSE and self.state == self.PLAYING:
-            # Update RTSP sequence number.
             self.rtspSeq += 1
             
-            # Write the RTSP request to be sent.
-            # PAUSE pausa a reprodução
             request = "PAUSE " + self.fileName + " RTSP/1.0\n" + \
                       "CSeq: " + str(self.rtspSeq) + "\n" + \
                       "Session: " + str(self.sessionId)
             
-            # Keep track of the sent request.
             self.requestSent = self.PAUSE
             
         # Teardown request
         elif requestCode == self.TEARDOWN and not self.state == self.INIT:
-            # Update RTSP sequence number.
             self.rtspSeq += 1
             
-            # Write the RTSP request to be sent.
-            # TEARDOWN encerra a sessão
             request = "TEARDOWN " + self.fileName + " RTSP/1.0\n" + \
                       "CSeq: " + str(self.rtspSeq) + "\n" + \
                       "Session: " + str(self.sessionId)
             
-            # Keep track of the sent request.
             self.requestSent = self.TEARDOWN
         else:
             return
         
         # Send the RTSP request using rtspSocket.
+        # Python 3: É necessário codificar a string para bytes
         if self.rtspSocket:
-            self.rtspSocket.send(request.encode())
+            self.rtspSocket.send(request.encode('utf-8'))
         
         print('\nData sent:\n' + request)
     
@@ -242,9 +226,12 @@ class Client:
     def parseRtspReply(self, data):
         """Parse the RTSP reply from the server."""
         try:
-            lines = data.decode().split('\n')
+            # Python 3: Decodifica os bytes recebidos para string
+            decoded_data = data.decode('utf-8')
+            lines = decoded_data.splitlines()
             seqNum = int(lines[1].split(' ')[1])
-        except:
+        except Exception:
+            # Se falhar o decode ou o split, ignora
             return
 
         # Process only if the server reply's sequence number is the same as the request's
@@ -258,32 +245,23 @@ class Client:
             if self.sessionId == session:
                 if int(lines[0].split(' ')[1]) == 200: 
                     if self.requestSent == self.SETUP:
-                        # Update RTSP state.
                         self.state = self.READY
-                        # Open RTP port.
                         self.openRtpPort() 
                     elif self.requestSent == self.PLAY:
                         self.state = self.PLAYING
                     elif self.requestSent == self.PAUSE:
                         self.state = self.READY
-                        # The play thread exits. A new thread is created on resume.
                         self.playEvent.set()
                     elif self.requestSent == self.TEARDOWN:
                         self.state = self.INIT
-                        # Flag the teardownAcked to close the socket.
                         self.teardownAcked = 1 
     
     def openRtpPort(self):
         """Open RTP socket binded to a specified port."""
-        # Create a new datagram socket to receive RTP packets from the server
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
-        # Set the timeout value of the socket to 0.5sec
         self.rtpSocket.settimeout(0.5)
         
         try:
-            # Bind the socket to the address using the RTP port given by the client user
-            # Usa string vazia "" para aceitar conexões em qualquer interface da máquina
             self.rtpSocket.bind(("", self.rtpPort))
         except:
             tkMessageBox.showwarning('Unable to Bind', 'Unable to bind PORT=%d' %self.rtpPort)
