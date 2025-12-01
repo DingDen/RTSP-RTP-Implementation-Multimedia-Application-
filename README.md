@@ -29,24 +29,25 @@ Este projeto implementa um **servidor e cliente RTSP** em Python para transmiss�
 
 ---
 
-## **Estrutura do Projeto**
-
-Instruções/VideoStreamingCode/
-├── `ClientLauncher.py`  # Script para iniciar o cliente via linha de comando
-├── `Client.py`           # Cliente RTSP com GUI
-├── `Server.py`           # Servidor RTSP principal
-├── `ServerWorker.py`     # Worker que trata cada cliente individualmente
-├── `VideoStream.py`      # Lê frames do arquivo de vídeo MJPEG
-├── `movie.Mjpeg`         # Arquivo de vídeo
-├── `RtpPacket.py`        # Implementa a construção e decodificação de pacotes RTP
-Imagens/
-├── `describe_button.png` # Imagem que mostra a função describe
-├── `inic_conexao.png`    # Imagem que mostra a conexão cliente-servidor
-├── `pause_button.png`    # Imagem que mostra a função pause
-├── `play_button.png`     # Imagem que mostra a função play
-├── `setup_button.png`    # Imagem que mostra a função setup
-├── `teardown_button.png` # Imagem que mostra a função teardown
-`README.md`               # Este arquivo de documentação
+## Estrutura do Projeto
+```
+📁 Instruções/VideoStreamingCode/
+├── ClientLauncher.py      # Script para iniciar o cliente via linha de comando
+├── Client.py              # Cliente RTSP com GUI
+├── Server.py              # Servidor RTSP principal
+├── ServerWorker.py        # Worker que trata cada cliente individualmente
+├── VideoStream.py         # Lê frames do arquivo de vídeo MJPEG
+├── movie.Mjpeg            # Arquivo de vídeo
+├── RtpPacket.py           # Implementa a construção e decodificação de pacotes RTP
+📁 Imagens/
+├── describe_button.png     # Mostra a função describe
+├── inic_conexao.png        # Mostra a conexão cliente-servidor
+├── pause_button.png        # Mostra a função pause
+├── play_button.png         # Mostra a função play
+├── setup_button.png        # Mostra a função setup
+├── teardown_button.png     # Mostra a função teardown
+📄 README.md                # Este arquivo de documentação
+```
 
 ---
 
@@ -100,6 +101,6 @@ Exemplo de um cliente conectado ao servidor:
 
 ## Autores
 
-**1. Daniel Diniz**
-**2. Mateus Bastos**
-**3. Matheus Azevedo**
+- Daniel Diniz – [@DingDen](https://github.com/DingDen)
+- Mateus Bastos Araújo – [@mattbasttos](https://github.com/mattbasttos)
+- Matheus Azevedo – [@caradebrel](https://github.com/caradebrel)
