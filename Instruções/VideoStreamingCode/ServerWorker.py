@@ -9,6 +9,7 @@ class ServerWorker:
     PLAY = 'PLAY'
     PAUSE = 'PAUSE'
     TEARDOWN = 'TEARDOWN'
+    DESCRIBE = 'DESCRIBE'
     
     INIT = 0
     READY = 1
@@ -111,6 +112,15 @@ class ServerWorker:
                 self.clientInfo['event'].set()
             
                 self.replyRtsp(self.OK_200, seq[1])
+
+        # Process DESCRIBE request
+        elif requestType == self.DESCRIBE:
+            print("Processando DESCRIBE...")
+            
+            # Gera a resposta SDP
+            sdpInfo = self.generateSdp(self.clientInfo['videoStream'])
+            
+            self.replyRtspDescribe(self.OK_200, seq[1], sdpInfo)
         
         # Process TEARDOWN request
         elif requestType == self.TEARDOWN:
@@ -182,3 +192,22 @@ class ServerWorker:
             print("Erro 404: Arquivo não encontrado.")
         elif code == self.CON_ERR_500:
             print("Erro 500: Erro de conexão.")
+    
+    def generateSdp(self, videoStream):
+        """Gera informações de descrição da sessão em formato SDP"""
+        filename = videoStream.filename
+        sdp = f"v=0\n"                      # versão SDP
+        sdp += f"o=- 0 0 IN IP4 127.0.0.1\n" # origin
+        sdp += f"s={filename}\n"             # session name
+        sdp += f"t=0 0\n"                    # timing
+        sdp += f"m=video {self.clientInfo.get('rtpPort', 0)} RTP/AVP 26\n"  # media, porta RTP, payload type
+        sdp += f"a=control:streamid=0\n"
+        sdp += f"a=mimetype:string;encoding=JPEG\n"
+        return sdp
+
+    def replyRtspDescribe(self, code, seq, sdpInfo):
+        """Envia resposta DESCRIBE ao cliente"""
+        if code == self.OK_200:
+            reply = f'RTSP/1.0 200 OK\nCSeq: {seq}\nSession: {self.clientInfo["session"]}\n{len(sdpInfo)}\n{sdpInfo}'
+            connSocket = self.clientInfo['rtspSocket'][0]
+            connSocket.send(reply.encode('utf-8'))
